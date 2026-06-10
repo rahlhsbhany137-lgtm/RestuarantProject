@@ -6,6 +6,10 @@
 System::System() {
     db.openDatabase("restaurant.db");
     db.createTables();
+    userDAO = new UserDAO(
+        db.getDB()
+    );
+
     loadFromDatabase();
 
     std::cout << "Loaded users" << users.size() << std::endl;
@@ -18,15 +22,7 @@ void System::registerUser(std::shared_ptr<User> user)
     
     users.push_back(user);
 
-   
-    db.execute(
-        "INSERT OR IGNORE INTO Users VALUES(" +
-        std::to_string(user->getId()) + ",'" +
-        user->getUsername() + "','" +
-        user->getPassword() + "'," +
-        std::to_string((int)user->getRole()) +
-        ");"
-    );
+    userDAO->insertUser(user);
 }
 
 std::shared_ptr<User> System::login(const std::string& u, const std::string& p) {
@@ -140,7 +136,7 @@ void System::showReports() const {
     std::cout << "Total Restaurants: " << restaurants.size() << "\n";
 
    
-    long activeCount = std::count_if(restaurants.begin(), restaurants.end(),
+    int activeCount = std::count_if(restaurants.begin(), restaurants.end(),
         [](const std::shared_ptr<Restaurant>& r) {
             return r && r->isActiveStatus();
         });
@@ -159,5 +155,5 @@ void System::showReports() const {
 }
 
 void System::loadFromDatabase() {
-    users = db.loadUsers();
+    users = userDAO->getAllUsers();
 }

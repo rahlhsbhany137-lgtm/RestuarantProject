@@ -21,16 +21,10 @@ public:
 
     bool execute(const std::string& sql);
 
-    bool insertUser(
-        int id,
-        const std::string& username,
-        const std::string& password,
-        int role
-    );
-
-    std::vector<std::shared_ptr<User>> loadUsers();
 
     void createTables();
+
+    sqlite3* getDB();
 };
 
 #endif

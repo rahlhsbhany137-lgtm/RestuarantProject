@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "UserDAO.h"
 #include "User.h"
 #include "Restaurant.h"
 #include "Order.h"
@@ -16,6 +17,7 @@ private:
     std::vector<std::shared_ptr<Order>> orders;
 
     DatabaseManager db;
+    UserDAO* userDAO;
 
     int nextOrderId = 1;
 
