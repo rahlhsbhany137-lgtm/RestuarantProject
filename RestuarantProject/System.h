@@ -3,12 +3,13 @@
 #include <memory>
 #include <string>
 
-#include "UserDAO.h"
 #include "User.h"
 #include "Restaurant.h"
 #include "Order.h"
 #include "Cart.h"
 #include "DatabaseManager.h"
+#include "UserDAO.h"
+#include "RestaurantDAO.h"
 
 class System {
 private:
@@ -18,6 +19,7 @@ private:
 
     DatabaseManager db;
     UserDAO* userDAO;
+    RestaurantDAO* restaurantDAO;
 
     int nextOrderId = 1;
 

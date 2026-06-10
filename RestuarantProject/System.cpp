@@ -6,9 +6,11 @@
 System::System() {
     db.openDatabase("restaurant.db");
     db.createTables();
-    userDAO = new UserDAO(
-        db.getDB()
-    );
+    userDAO = new UserDAO(db.getDB());
+    restaurantDAO =
+        new RestaurantDAO(
+            db.getDB()
+        );
 
     loadFromDatabase();
 
@@ -35,6 +37,7 @@ std::shared_ptr<User> System::login(const std::string& u, const std::string& p) 
 
 void System::addRestaurant(std::shared_ptr<Restaurant> r) {
     restaurants.push_back(r);
+    restaurantDAO->insertRestaurant(r);
 }
 
 
@@ -156,4 +159,5 @@ void System::showReports() const {
 
 void System::loadFromDatabase() {
     users = userDAO->getAllUsers();
+    restaurants = restaurantDAO->getAllRestaurants();
 }
