@@ -39,6 +39,15 @@ void DatabaseManager::closeDatabase()
 
 bool DatabaseManager::execute(const std::string& sql)
 {
+
+    if (!db)
+    {
+        std::cout
+            << "Database not opened\n";
+
+        return false;
+    }
+
     char* errMsg = nullptr;
 
     int result = sqlite3_exec(
@@ -86,6 +95,20 @@ void DatabaseManager::createTables()
 
     execute(restaurantsTable);
 
+    std::string menuItemsTable =
+        "CREATE TABLE IF NOT EXISTS MenuItems ("
+        "id INTEGER PRIMARY KEY,"
+        "restaurantId INTEGER,"
+        "name TEXT,"
+        "description TEXT,"
+        "price REAL,"
+        "type INTEGER,"
+        "available INTEGER,"
+        "cookTime INTEGER,"
+        "volume INTEGER);";
+
+    execute(menuItemsTable);
+
     std::string ordersTable =
         "CREATE TABLE IF NOT EXISTS Orders ("
         "id INTEGER PRIMARY KEY,"
@@ -95,6 +118,15 @@ void DatabaseManager::createTables()
         "total REAL);";
 
     execute(ordersTable);
+
+    std::string orderItemsTable =
+        "CREATE TABLE IF NOT EXISTS OrderItems("
+        "orderId INTEGER,"
+        "itemId INTEGER,"
+        "quantity INTEGER"
+        ");";
+
+       execute(orderItemsTable);
 
     std::cout << "Tables created.\n";
 }

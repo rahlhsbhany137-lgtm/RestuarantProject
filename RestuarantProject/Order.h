@@ -24,7 +24,8 @@ public:
     int getOrderId() const;
     int getCustomerId() const;
     int getRestaurantId() const;
-
+    const std::vector<std::shared_ptr<MenuItem>>& getItems() const;
+    const std::vector<int>& getQuantities() const;
     void addItem(std::shared_ptr<MenuItem> item, int quantity);
 
     void setStatus(OrderStatus s);

@@ -30,6 +30,16 @@ int Order::getOrderId() const { return id; }
 int Order::getCustomerId() const { return customerId; }
 int Order::getRestaurantId() const { return restaurantId; }
 
+const std::vector<std::shared_ptr<MenuItem>>& Order::getItems() const
+{
+    return items;
+}
+
+const std::vector<int>& Order::getQuantities() const
+{
+    return quantities;
+}
+
 void Order::addItem(std::shared_ptr<MenuItem> item, int quantity) {
     if (item && quantity > 0) {
         items.push_back(item);

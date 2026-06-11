@@ -5,6 +5,7 @@ RestaurantDAO::RestaurantDAO(
 )
     : db(database)
 {
+   
 }
 
 bool RestaurantDAO::insertRestaurant(
@@ -113,6 +114,9 @@ RestaurantDAO::getAllRestaurants()
         int prep =
             sqlite3_column_int(stmt, 5);
 
+        int status =
+            sqlite3_column_int(stmt, 6);
+
         int adminId =
             sqlite3_column_int(stmt, 7);
 
@@ -127,6 +131,10 @@ RestaurantDAO::getAllRestaurants()
                 desc,
                 adminId
             );
+
+        restaurant->setStatus(
+            static_cast<RestaurantStatus>(status)
+        );
 
         result.push_back(
             restaurant

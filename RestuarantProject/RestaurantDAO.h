@@ -6,10 +6,12 @@
 #include "sqlite3.h"
 #include "Restaurant.h"
 
+
 class RestaurantDAO
 {
 private:
     sqlite3* db;
+    
 
 public:
     RestaurantDAO(sqlite3* database);

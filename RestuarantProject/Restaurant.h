@@ -41,6 +41,8 @@ public:
 
     bool isActiveStatus() const;
     void toggleStatus();
+    void setStatus(RestaurantStatus s);
+    void setMenu(const std::vector<std::shared_ptr<MenuItem>>& m);
     void updateMenuItem(int itemId, const std::string& newName, const std::string& newDesc, double newPrice);
     void editDetails(const std::string& n,
         const std::string& addr,

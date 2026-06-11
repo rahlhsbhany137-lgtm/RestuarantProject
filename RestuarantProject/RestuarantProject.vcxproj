@@ -153,7 +153,9 @@
     <ClCompile Include="Cart.cpp" />
     <ClCompile Include="DatabaseManager.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MenuItemDAO.cpp" />
     <ClCompile Include="Order.cpp" />
+    <ClCompile Include="OrderDAO.cpp" />
     <ClCompile Include="Restaurant.cpp" />
     <ClCompile Include="RestaurantDAO.cpp" />
     <ClCompile Include="System.cpp" />
@@ -165,8 +167,10 @@
     <ClInclude Include="Admin.h" />
     <ClInclude Include="Cart.h" />
     <ClInclude Include="DatabaseManager.h" />
+    <ClInclude Include="MenuItemDAO.h" />
     <ClInclude Include="Models.h" />
     <ClInclude Include="Order.h" />
+    <ClInclude Include="OrderDAO.h" />
     <ClInclude Include="Restaurant.h" />
     <ClInclude Include="RestaurantDAO.h" />
     <ClInclude Include="System.h" />

@@ -7,10 +7,10 @@ System::System() {
     db.openDatabase("restaurant.db");
     db.createTables();
     userDAO = new UserDAO(db.getDB());
-    restaurantDAO =
-        new RestaurantDAO(
-            db.getDB()
-        );
+    orderDAO = new OrderDAO(db.getDB());
+    restaurantDAO =new RestaurantDAO(db.getDB());
+    menuItemDAO = new MenuItemDAO(db.getDB());
+
 
     loadFromDatabase();
 
@@ -93,6 +93,7 @@ std::shared_ptr<Order> System::createOrder(int customerId, int restaurantId,
 
     auto order = std::make_shared<Order>(nextOrderId++, customerId, restaurantId, cartItems);
     orders.push_back(order);
+    orderDAO->insertOrder(order);
 
  
     return order;
@@ -119,6 +120,7 @@ bool System::setOrderStatus(int orderId, int restaurantId, OrderStatus status) {
         if (!o) continue;
         if (o->getOrderId() == orderId && o->getRestaurantId() == restaurantId) {
             o->setStatus(status);
+            orderDAO->updateOrderStatus(orderId, status);
             return true;
         }
     }
@@ -139,7 +141,7 @@ void System::showReports() const {
     std::cout << "Total Restaurants: " << restaurants.size() << "\n";
 
    
-    int activeCount = std::count_if(restaurants.begin(), restaurants.end(),
+    size_t activeCount = std::count_if(restaurants.begin(), restaurants.end(),
         [](const std::shared_ptr<Restaurant>& r) {
             return r && r->isActiveStatus();
         });
@@ -157,7 +159,24 @@ void System::showReports() const {
     std::cout << "----------------------\n";
 }
 
-void System::loadFromDatabase() {
-    users = userDAO->getAllUsers();
-    restaurants = restaurantDAO->getAllRestaurants();
+void System::loadFromDatabase()
+{
+    users =
+        userDAO->getAllUsers();
+
+    restaurants =
+        restaurantDAO->getAllRestaurants();
+
+    for (auto& r : restaurants)
+    {
+        auto menu =
+            menuItemDAO->getMenuItemsByRestaurant(
+                r->getId()
+            );
+
+        r->setMenu(menu);
+    }
+
+    orders =
+        orderDAO->getAllOrders();
 }

@@ -39,6 +39,16 @@ void Restaurant::toggleStatus() {
         : RestaurantStatus::ACTIVE;
 }
 
+void Restaurant::setStatus(RestaurantStatus s)
+{
+    status = s;
+}
+
+void Restaurant::setMenu(const std::vector<std::shared_ptr<MenuItem>>& m)
+{
+    menu = m;
+}
+
 void Restaurant::editDetails(const std::string& n, const std::string& addr, const std::string& ph, const std::string& desc) {
     name = n;
     address = addr;

@@ -10,6 +10,8 @@
 #include "DatabaseManager.h"
 #include "UserDAO.h"
 #include "RestaurantDAO.h"
+#include "MenuItemDAO.h"
+#include "OrderDAO.h"
 
 class System {
 private:
@@ -20,6 +22,8 @@ private:
     DatabaseManager db;
     UserDAO* userDAO;
     RestaurantDAO* restaurantDAO;
+    MenuItemDAO* menuItemDAO;
+    OrderDAO* orderDAO;
 
     int nextOrderId = 1;
 
