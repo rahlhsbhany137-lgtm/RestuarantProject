@@ -75,7 +75,7 @@ void DatabaseManager::createTables()
 {
     std::string usersTable =
         "CREATE TABLE IF NOT EXISTS Users ("
-        "id INTEGER PRIMARY KEY,"
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "username TEXT,"
         "password TEXT,"
         "role INTEGER);";
@@ -97,7 +97,7 @@ void DatabaseManager::createTables()
 
     std::string menuItemsTable =
         "CREATE TABLE IF NOT EXISTS MenuItems ("
-        "id INTEGER PRIMARY KEY,"
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "restaurantId INTEGER,"
         "name TEXT,"
         "description TEXT,"
@@ -111,7 +111,7 @@ void DatabaseManager::createTables()
 
     std::string ordersTable =
         "CREATE TABLE IF NOT EXISTS Orders ("
-        "id INTEGER PRIMARY KEY,"
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "customerId INTEGER,"
         "restaurantId INTEGER,"
         "status INTEGER,"

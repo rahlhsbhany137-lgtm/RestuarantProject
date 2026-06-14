@@ -1,4 +1,6 @@
 #include "OrderDAO.h"
+#include "MenuItemDAO.h"
+#include <iostream>
 
 OrderDAO::OrderDAO(sqlite3* database)
     : db(database)
@@ -11,72 +13,12 @@ bool OrderDAO::insertOrder(
 {
     if (!order)
         return false;
-
-    std::string sql =
-        "INSERT INTO Orders VALUES("
-        + std::to_string(order->getOrderId()) + ","
-        + std::to_string(order->getCustomerId()) + ","
-        + std::to_string(order->getRestaurantId()) + ","
-        + std::to_string((int)order->getStatus()) + ","
-        + std::to_string(order->getTotalPrice()) +
-        ");";
-
-    if (
-        sqlite3_exec(
-            db,
-            sql.c_str(),
-            nullptr,
-            nullptr,
-            nullptr
-        ) != SQLITE_OK
-        )
-    {
-        return false;
-    }
-
-    const auto& items =
-        order->getItems();
-
-    const auto& quantities =
-        order->getQuantities();
-
-    for (
-        size_t i = 0;
-        i < items.size();
-        i++
-        )
-    {
-        if (!items[i])
-            continue;
-
-        std::string itemSql =
-            "INSERT INTO OrderItems VALUES("
-            + std::to_string(order->getOrderId()) + ","
-            + std::to_string(items[i]->getId()) + ","
-            + std::to_string(quantities[i]) +
-            ");";
-
-        sqlite3_exec(
-            db,
-            itemSql.c_str(),
-            nullptr,
-            nullptr,
-            nullptr
-        );
-    }
-
-    return true;
-}
-
-std::vector<std::shared_ptr<Order>>
-OrderDAO::getAllOrders()
-{
-    std::vector<std::shared_ptr<Order>> result;
-
-    MenuItemDAO menuDAO(db);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
 
     const char* sql =
-        "SELECT * FROM Orders;";
+        "INSERT INTO Orders "
+        "(customerId, restaurantId, status, total) "
+        "VALUES (?, ?, ?, ?);";
 
     sqlite3_stmt* stmt = nullptr;
 
@@ -90,57 +32,167 @@ OrderDAO::getAllOrders()
         ) != SQLITE_OK
         )
     {
-        return result;
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+        return false;
     }
 
-    while (
-        sqlite3_step(stmt)
-        ==
-        SQLITE_ROW
+    sqlite3_bind_int(
+        stmt,
+        1,
+        order->getCustomerId()
+    );
+
+    sqlite3_bind_int(
+        stmt,
+        2,
+        order->getRestaurantId()
+    );
+
+    sqlite3_bind_int(
+        stmt,
+       3,
+        (int)order->getStatus()
+    );
+
+    sqlite3_bind_double(
+        stmt,
+        4,
+        order->getTotalPrice()
+    );
+
+    int newOrderId = 0;
+
+    bool success =
+        (sqlite3_step(stmt)
+            ==
+            SQLITE_DONE);
+
+    if (success) {
+        newOrderId = (int)sqlite3_last_insert_rowid(db);
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (!success) {
+        sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+        return false;
+    }
+   
+    const auto& items =
+        order->getItems();
+
+    const auto& quantities =
+        order->getQuantities();
+
+    for (
+        size_t i = 0;
+        i < items.size();
+        ++i
         )
     {
-        int id =
-            sqlite3_column_int(stmt, 0);
+        if (!items[i])
+            continue;
 
-        int customerId =
-            sqlite3_column_int(stmt, 1);
-
-        int restaurantId =
-            sqlite3_column_int(stmt, 2);
-
-        int status =
-            sqlite3_column_int(stmt, 3);
-
-        auto order =
-            std::make_shared<Order>(
-                id,
-                customerId,
-                restaurantId
-            );
-
-        order->setStatus(
-            static_cast<OrderStatus>(status)
-        );
-
-        std::string itemSql =
-            "SELECT itemId, quantity "
-            "FROM OrderItems "
-            "WHERE orderId="
-            + std::to_string(id)
-            + ";";
+        const char* itemSql =
+            "INSERT INTO OrderItems "
+            "(orderId, itemId, quantity) "
+            "VALUES (?, ?, ?);";
 
         sqlite3_stmt* itemStmt = nullptr;
 
         if (
             sqlite3_prepare_v2(
                 db,
-                itemSql.c_str(),
+                itemSql,
+                -1,
+                &itemStmt,
+                nullptr
+            ) != SQLITE_OK
+            )
+        {
+            sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+            return false;
+        }
+
+        sqlite3_bind_int(
+            itemStmt,
+            1,
+            newOrderId
+        );
+
+        sqlite3_bind_int(
+            itemStmt,
+            2,
+            items[i]->getId()
+        );
+
+        sqlite3_bind_int(
+            itemStmt,
+            3,
+            quantities[i]
+        );
+
+        if (sqlite3_step(itemStmt) != SQLITE_DONE)
+        {
+            sqlite3_finalize(itemStmt);
+            sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+            return false;
+        }
+
+        sqlite3_step(itemStmt);
+
+    }
+
+    sqlite3_exec(db, "COMMIT;", nullptr, nullptr, nullptr);
+    return true;
+}
+
+std::vector<std::shared_ptr<Order>>
+OrderDAO::getAllOrders()
+{
+    std::vector<std::shared_ptr<Order>> result;
+
+    const char* sql = "SELECT * FROM Orders;";
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return result;
+
+    MenuItemDAO menuDAO(db);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        int customerId = sqlite3_column_int(stmt, 1);
+        int restaurantId = sqlite3_column_int(stmt, 2);
+        int status = sqlite3_column_int(stmt, 3);
+
+        auto order = std::make_shared<Order>(id, customerId, restaurantId);
+        order->setStatus(static_cast<OrderStatus>(status));
+
+        const char* itemSql =
+            "SELECT itemId, quantity "
+            "FROM OrderItems "
+            "WHERE orderId=?;";
+
+        sqlite3_stmt* itemStmt = nullptr;
+
+        if (
+            sqlite3_prepare_v2(
+                db,
+                itemSql,
                 -1,
                 &itemStmt,
                 nullptr
             ) == SQLITE_OK
             )
         {
+            sqlite3_bind_int(
+                itemStmt,
+                1,
+                id
+            );
+
             while (
                 sqlite3_step(itemStmt)
                 ==
@@ -187,20 +239,153 @@ OrderDAO::getAllOrders()
 std::shared_ptr<Order>
 OrderDAO::getOrderById(int orderId)
 {
-    auto orders = getAllOrders();
+    const char* sql =
+        "SELECT * FROM Orders WHERE id=?;";
 
-    for (auto& order : orders)
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return nullptr;
+
+    sqlite3_bind_int(stmt, 1, orderId);
+
+    std::shared_ptr<Order> order = nullptr;
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
     {
+        int id = sqlite3_column_int(stmt, 0);
+        int customerId = sqlite3_column_int(stmt, 1);
+        int restaurantId = sqlite3_column_int(stmt, 2);
+        int status = sqlite3_column_int(stmt, 3);
+
+        order = std::make_shared<Order>(id, customerId, restaurantId);
+        order->setStatus(static_cast<OrderStatus>(status));
+        
+        MenuItemDAO menuDAO(db);
+
+        const char* itemSql =
+            "SELECT itemId, quantity "
+            "FROM OrderItems "
+            "WHERE orderId=?;";
+
+        sqlite3_stmt* itemStmt = nullptr;
+
         if (
-            order &&
-            order->getOrderId() == orderId
+            sqlite3_prepare_v2(
+                db,
+                itemSql,
+                -1,
+                &itemStmt,
+                nullptr
+            ) == SQLITE_OK
             )
         {
-            return order;
+            sqlite3_bind_int(
+                itemStmt,
+                1,
+                orderId
+            );
+
+            while (
+                sqlite3_step(itemStmt)
+                ==
+                SQLITE_ROW
+                )
+            {
+                int itemId =
+                    sqlite3_column_int(
+                        itemStmt,
+                        0
+                    );
+
+                int quantity =
+                    sqlite3_column_int(
+                        itemStmt,
+                        1
+                    );
+
+                auto item =
+                    menuDAO.getMenuItemById(
+                        itemId
+                    );
+
+                if (item)
+                {
+                    order->addItem(
+                        item,
+                        quantity
+                    );
+                }
+            }
+            sqlite3_finalize(itemStmt);
         }
     }
+    sqlite3_finalize(stmt);
+    return order;
+}
 
-    return nullptr;
+std::vector<std::shared_ptr<Order>>
+OrderDAO::getOrdersByCustomerId(int customerId)
+{
+    std::vector<std::shared_ptr<Order>> result;
+
+    const char* sql =
+        "SELECT * FROM Orders WHERE customerId=?;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return result;
+
+    sqlite3_bind_int(stmt, 1, customerId);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        int cId = sqlite3_column_int(stmt, 1);
+        int rId = sqlite3_column_int(stmt, 2);
+        int status = sqlite3_column_int(stmt, 3);
+
+        auto order = std::make_shared<Order>(id, cId, rId);
+        order->setStatus(static_cast<OrderStatus>(status));
+
+        result.push_back(order);
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+std::vector<std::shared_ptr<Order>>
+OrderDAO::getOrdersByRestaurantId(int restaurantId)
+{
+    std::vector<std::shared_ptr<Order>> result;
+
+    const char* sql =
+        "SELECT * FROM Orders WHERE restaurantId=?;";
+
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        return result;
+
+    sqlite3_bind_int(stmt, 1, restaurantId);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        int cId = sqlite3_column_int(stmt, 1);
+        int rId = sqlite3_column_int(stmt, 2);
+        int status = sqlite3_column_int(stmt, 3);
+
+        auto order = std::make_shared<Order>(id, cId, rId);
+        order->setStatus(static_cast<OrderStatus>(status));
+
+        result.push_back(order);
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 bool OrderDAO::updateOrderStatus(
@@ -208,49 +393,110 @@ bool OrderDAO::updateOrderStatus(
     OrderStatus status
 )
 {
-    std::string sql =
-        "UPDATE Orders SET status="
-        + std::to_string((int)status)
-        + " WHERE id="
-        + std::to_string(orderId)
-        + ";";
+    const char* sql =
+        "UPDATE Orders "
+        "SET status=? "
+        "WHERE id=?;";
 
-    return sqlite3_exec(
-        db,
-        sql.c_str(),
-        nullptr,
-        nullptr,
-        nullptr
-    ) == SQLITE_OK;
+    sqlite3_stmt* stmt = nullptr;
+
+    if (
+        sqlite3_prepare_v2(
+            db,
+            sql,
+            -1,
+            &stmt,
+            nullptr
+        ) != SQLITE_OK
+        )
+    {
+        return false;
+    }
+
+    sqlite3_bind_int(
+        stmt,
+        1,
+        (int)status
+    );
+
+    sqlite3_bind_int(
+        stmt,
+        2,
+        orderId
+    );
+
+    bool success =
+        (sqlite3_step(stmt)
+            ==
+            SQLITE_DONE);
+
+    sqlite3_finalize(stmt);
+
+    return success;
 }
 
 bool OrderDAO::deleteOrder(
     int orderId
 )
 {
-    std::string deleteItems =
-        "DELETE FROM OrderItems WHERE orderId="
-        + std::to_string(orderId)
-        + ";";
+    const char* deleteItemsSql =
+        "DELETE FROM OrderItems "
+        "WHERE orderId=?;";
 
-    sqlite3_exec(
-        db,
-        deleteItems.c_str(),
-        nullptr,
-        nullptr,
-        nullptr
+    sqlite3_stmt* stmt1 = nullptr;
+
+    if (
+        sqlite3_prepare_v2(
+            db,
+            deleteItemsSql,
+            -1,
+            &stmt1,
+            nullptr
+        ) == SQLITE_OK
+        )
+    {
+        sqlite3_bind_int(
+            stmt1,
+            1,
+            orderId
+        );
+
+        sqlite3_step(stmt1);
+
+        sqlite3_finalize(stmt1);
+    }
+
+    const char* deleteOrderSql =
+        "DELETE FROM Orders "
+        "WHERE id=?;";
+
+    sqlite3_stmt* stmt2 = nullptr;
+
+    if (
+        sqlite3_prepare_v2(
+            db,
+            deleteOrderSql,
+            -1,
+            &stmt2,
+            nullptr
+        ) != SQLITE_OK
+        )
+    {
+        return false;
+    }
+
+    sqlite3_bind_int(
+        stmt2,
+        1,
+        orderId
     );
 
-    std::string deleteOrder =
-        "DELETE FROM Orders WHERE id="
-        + std::to_string(orderId)
-        + ";";
+    bool success =
+        (sqlite3_step(stmt2)
+            ==
+            SQLITE_DONE);
 
-    return sqlite3_exec(
-        db,
-        deleteOrder.c_str(),
-        nullptr,
-        nullptr,
-        nullptr
-    ) == SQLITE_OK;
+    sqlite3_finalize(stmt2);
+
+    return success;
 }

@@ -17,6 +17,14 @@ System::System() {
     std::cout << "Loaded users" << users.size() << std::endl;
 }
 
+System::~System()
+{
+    delete userDAO;
+    delete restaurantDAO;
+    delete menuItemDAO;
+    delete orderDAO;
+}
+
 void System::registerUser(std::shared_ptr<User> user)
 {
     if (!user) return;
@@ -28,11 +36,7 @@ void System::registerUser(std::shared_ptr<User> user)
 }
 
 std::shared_ptr<User> System::login(const std::string& u, const std::string& p) {
-    for (auto& user : users) {
-        if (user->getUsername() == u && user->getPassword() == p)
-            return user;
-    }
-    return nullptr;
+    return userDAO->getUserByCredentials(u, p);
 }
 
 void System::addRestaurant(std::shared_ptr<Restaurant> r) {
@@ -92,46 +96,37 @@ std::shared_ptr<Order> System::createOrder(int customerId, int restaurantId,
     }
 
     auto order = std::make_shared<Order>(nextOrderId++, customerId, restaurantId, cartItems);
-    orders.push_back(order);
-    orderDAO->insertOrder(order);
+    if (!orderDAO->insertOrder(order))
+    {
+        std::cout << "Failed to save order.\n";
+        return nullptr;
 
- 
+        
+    }
     return order;
+  
 }
 
 std::vector<std::shared_ptr<Order>> System::getOrdersByCustomerId(int customerId) const {
-    std::vector<std::shared_ptr<Order>> res;
-    for (auto& o : orders) {
-        if (o && o->getCustomerId() == customerId) res.push_back(o);
-    }
-    return res;
+    return
+        orderDAO->getOrdersByCustomerId(customerId);
 }
 
 std::vector<std::shared_ptr<Order>> System::getOrdersByRestaurantId(int restaurantId) const {
-    std::vector<std::shared_ptr<Order>> res;
-    for (auto& o : orders) {
-        if (o && o->getRestaurantId() == restaurantId) res.push_back(o);
-    }
-    return res;
+    return orderDAO->getOrdersByRestaurantId(restaurantId);
 }
 
 bool System::setOrderStatus(int orderId, int restaurantId, OrderStatus status) {
-    for (auto& o : orders) {
-        if (!o) continue;
-        if (o->getOrderId() == orderId && o->getRestaurantId() == restaurantId) {
-            o->setStatus(status);
-            orderDAO->updateOrderStatus(orderId, status);
-            return true;
-        }
-    }
-    std::cout << "Order not found or you dont heve permission to update it.\n";
-    return false;
+    return orderDAO->updateOrderStatus(orderId, status);
 }
 
 bool System::toggleRestaurantStatus(int restaurantId) {
     auto r = findRestaurantById(restaurantId);
     if (!r) return false;
     r->toggleStatus();
+
+    restaurantDAO->updateRestaurantStatus(restaurantId, r->isActiveStatus());
+
     return true;
 }
 
@@ -147,10 +142,12 @@ void System::showReports() const {
         });
 
     std::cout << "Total Active: " << activeCount << "\n";
-    std::cout << "Total Orders: " << orders.size() << "\n";
+    auto allOrders = orderDAO->getAllOrders();
+
+    std::cout << "Total Orders: " << allOrders.size() << "\n";
 
     double totalSales = 0;
-    for (auto& o : orders) {
+    for (auto& o : allOrders) {
         if (o) { 
             totalSales += o->getTotalPrice();
         }
@@ -169,6 +166,8 @@ void System::loadFromDatabase()
 
     for (auto& r : restaurants)
     {
+        if (!r) continue;
+
         auto menu =
             menuItemDAO->getMenuItemsByRestaurant(
                 r->getId()
@@ -177,6 +176,17 @@ void System::loadFromDatabase()
         r->setMenu(menu);
     }
 
-    orders =
+   auto allOrders =
         orderDAO->getAllOrders();
+   nextOrderId = 1;
+
+    for (auto& o : allOrders)
+    {
+        if (o &&
+            o->getOrderId() >= nextOrderId)
+        {
+            nextOrderId =
+                o->getOrderId() + 1;
+        }
+    }
 }

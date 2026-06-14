@@ -4,91 +4,48 @@ MenuItemDAO::MenuItemDAO(sqlite3* database)
     : db(database)
 {
 }
-
 std::shared_ptr<MenuItem>
 MenuItemDAO::getMenuItemById(int itemId)
 {
-    std::string sql =
-        "SELECT * FROM MenuItems WHERE id="
-        + std::to_string(itemId)
-        + ";";
+    const char* sql =
+        "SELECT * FROM MenuItems WHERE id=?;";
 
     sqlite3_stmt* stmt;
 
-    if (
-        sqlite3_prepare_v2(
-            db,
-            sql.c_str(),
-            -1,
-            &stmt,
-            nullptr
-        ) != SQLITE_OK
-        )
-    {
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
         return nullptr;
-    }
 
-    std::shared_ptr<MenuItem> item;
+    sqlite3_bind_int(stmt, 1, itemId);
 
-    if (
-        sqlite3_step(stmt)
-        ==
-        SQLITE_ROW
-        )
+    std::shared_ptr<MenuItem> item = nullptr;
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
     {
         int id = sqlite3_column_int(stmt, 0);
 
-        std::string name =
-            (const char*)
-            sqlite3_column_text(stmt, 2);
-
-        std::string desc =
-            (const char*)
-            sqlite3_column_text(stmt, 3);
-
-        double price =
-            sqlite3_column_double(stmt, 4);
-
-        int type =
-            sqlite3_column_int(stmt, 5);
-
-        int available =
-            sqlite3_column_int(stmt, 6);
-
-        int cookTime =
-            sqlite3_column_int(stmt, 7);
-
-        int volume =
-            sqlite3_column_int(stmt, 8);
+        std::string name = (const char*)sqlite3_column_text(stmt, 2);
+        std::string desc = (const char*)sqlite3_column_text(stmt, 3);
+        double price = sqlite3_column_double(stmt, 4);
+        int type = sqlite3_column_int(stmt, 5);
+        int available = sqlite3_column_int(stmt, 6);
+        int cookTime = sqlite3_column_int(stmt, 7);
+        int volume = sqlite3_column_int(stmt, 8);
 
         if (type == (int)ItemType::FOOD)
         {
-            item =
-                std::make_shared<Food>(
-                    id,
-                    name,
-                    desc,
-                    price,
-                    cookTime,
-                    available
-                );
+            item = std::make_shared<Food>(
+                id, name, desc, price, cookTime, available
+            );
         }
-        else
+        else if (type == (int)ItemType::DRINK)
         {
-            item =
-                std::make_shared<Drink>(
-                    id,
-                    name,
-                    desc,
-                    price,
-                    volume,
-                    available
-                );
+            item = std::make_shared<Drink>(
+                id, name, desc, price, volume, available
+            );
         }
     }
 
     sqlite3_finalize(stmt);
-
     return item;
 }
 bool MenuItemDAO::insertMenuItem(int restaurantId, std::shared_ptr<MenuItem> item)
@@ -150,62 +107,65 @@ MenuItemDAO::getMenuItemsByRestaurant(int restaurantId)
 {
     std::vector<std::shared_ptr<MenuItem>> result;
 
-    std::string sql =
-        "SELECT * FROM MenuItems WHERE restaurantId=" +
-        std::to_string(restaurantId) + ";";
+    const char* sql =
+        "SELECT * FROM MenuItems WHERE restaurantId=?;";
 
-    sqlite3_stmt* stmt;
+    sqlite3_stmt* stmt = nullptr;
 
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK)
         return result;
+
+    sqlite3_bind_int(stmt, 1, restaurantId);
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         int id = sqlite3_column_int(stmt, 0);
+
         const unsigned char* n = sqlite3_column_text(stmt, 2);
         std::string name = n ? (const char*)n : "";
+
         const unsigned char* d = sqlite3_column_text(stmt, 3);
         std::string desc = d ? (const char*)d : "";
+
         double price = sqlite3_column_double(stmt, 4);
         int type = sqlite3_column_int(stmt, 5);
         int available = sqlite3_column_int(stmt, 6);
         int cookTime = sqlite3_column_int(stmt, 7);
         int volume = sqlite3_column_int(stmt, 8);
 
-        std::shared_ptr<MenuItem> item;
+        std::shared_ptr<MenuItem> item = nullptr;
 
         if (type == (int)ItemType::FOOD)
         {
-            item =
-                std::make_shared<Food>(
-                    id,
-                    name,
-                    desc,
-                    price,
-                    cookTime,
-                    available
-                );
+            item = std::make_shared<Food>(
+                id,
+                name,
+                desc,
+                price,
+                cookTime,
+                available
+            );
         }
         else if (type == (int)ItemType::DRINK)
         {
-            item =
-                std::make_shared<Drink>(
-                    id,
-                    name,
-                    desc,
-                    price,
-                    volume,
-                    available
-                );
+            item = std::make_shared<Drink>(
+                id,
+                name,
+                desc,
+                price,
+                volume,
+                available
+            );
         }
 
-
-        result.push_back(item);
+        if (item)
+            result.push_back(item);
     }
 
     sqlite3_finalize(stmt);
     return result;
 }
+
 bool MenuItemDAO::deleteMenuItem(int itemId)
 {
     const char* sql =

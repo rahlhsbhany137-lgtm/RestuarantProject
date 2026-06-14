@@ -26,6 +26,9 @@ public:
     std::shared_ptr<Order>
         getOrderById(int orderId);
 
+    std::vector<std::shared_ptr<Order>> getOrdersByCustomerId(int customerId);
+    std::vector<std::shared_ptr<Order>> getOrdersByRestaurantId(int restaurantId);
+
     bool updateOrderStatus(
         int orderId,
         OrderStatus status

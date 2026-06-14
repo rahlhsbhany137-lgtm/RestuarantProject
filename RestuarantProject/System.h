@@ -17,7 +17,7 @@ class System {
 private:
     std::vector<std::shared_ptr<User>> users;
     std::vector<std::shared_ptr<Restaurant>> restaurants;
-    std::vector<std::shared_ptr<Order>> orders;
+    
 
     DatabaseManager db;
     UserDAO* userDAO;
@@ -29,6 +29,7 @@ private:
 
 public:
     System();
+    ~System();
     void registerUser(std::shared_ptr<User> user);
     std::shared_ptr<User> login(const std::string& u, const std::string& p);
 
